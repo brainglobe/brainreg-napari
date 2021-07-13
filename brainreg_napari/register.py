@@ -1,22 +1,24 @@
 import json
+import napari
+import pathlib
+import logging
+
+import bg_space as bg
+
 from collections import namedtuple
 from enum import Enum
-
-import napari
-from brainglobe_napari_io.cellfinder.reader_dir import load_registration
-
-from brainreg.utils.misc import log_metadata
-from brainreg_segment.atlas.utils import get_available_atlases
 from fancylog import fancylog
 from magicgui import magicgui
-import pathlib
+
+from brainglobe_napari_io.cellfinder.reader_dir import load_registration
+from brainreg_segment.atlas.utils import get_available_atlases
+
+import brainreg as program_for_log
+from brainreg.utils.misc import log_metadata
 from brainreg.paths import Paths
 from brainreg.utils.boundaries import boundaries
 from brainreg.utils.volume import calculate_volumes
-import bg_space as bg
-import logging
 from brainreg.backend.niftyreg.run import run_niftyreg
-import brainreg as program_for_log
 
 
 def get_atlas_dropdown():
