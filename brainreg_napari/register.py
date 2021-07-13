@@ -3,10 +3,8 @@ from collections import namedtuple
 from enum import Enum
 
 import napari
-from brainglobe_napari_io.cellfinder.reader_dir import (
-    load_registration,
-    get_atlas,
-)
+from brainglobe_napari_io.cellfinder.reader_dir import load_registration
+
 from brainreg.utils.misc import log_metadata
 from brainreg_segment.atlas.utils import get_available_atlases
 from fancylog import fancylog
