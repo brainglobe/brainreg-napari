@@ -15,7 +15,7 @@ requirements = [
 
 setup(
     name="brainreg-napari",
-    version="0.0.2-rc2",
+    version="0.0.2-rc3",
     author="Stephen Lenzi, Adam Tyson",
     author_email="code@adamltyson.com",
     license="BSD-3-Clause",
