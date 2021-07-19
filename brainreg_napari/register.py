@@ -26,9 +26,9 @@ def get_layer_labels(widget):
 
 
 def get_additional_images_downsample(widget):
-    names = [layer._name for layer in widget.viewer.value.layers.selected]
+    names = [layer._name for layer in widget.viewer.value.layers.selection]
     filenames = [
-        layer._source for layer in widget.viewer.value.layers.selected
+        layer._source for layer in widget.viewer.value.layers.selection
     ]
     return {str(k): str(v.path) for k, v in zip(names, filenames)}
 
