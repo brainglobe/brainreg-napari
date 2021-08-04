@@ -87,12 +87,12 @@ def brainreg_register():
         ),
         data_orientation=dict(
             value=DEFAULT_PARAMETERS["data_orientation"],
-            label="data_orientation",
+            label="Data orientation",
         ),
         registration_output_folder=dict(
             value=DEFAULT_PARAMETERS["registration_output_folder"],
             mode="d",
-            label="registration_output_folder",
+            label="Output directory",
         ),
         affine_n_steps=dict(
             value=DEFAULT_PARAMETERS["affine_n_steps"], label="affine_n_steps"
