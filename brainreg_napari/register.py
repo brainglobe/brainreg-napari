@@ -20,7 +20,7 @@ from brainreg.utils.misc import log_metadata
 from brainreg.paths import Paths
 from brainreg.utils.boundaries import boundaries
 from brainreg.utils.volume import calculate_volumes
-from brainreg.backend.niftyreg.run import run_niftyreg
+from brainreg.backend.niftyreg.run import run_niftyreg, crop_atlas
 
 
 def get_layer_labels(widget):
@@ -43,6 +43,15 @@ def get_atlas_dropdown():
     return atlas_keys
 
 
+def get_brain_geometry_dropdown():
+    geometry_dict = {
+        "Full brain": "full",
+        "Right hemishpere": "hemisphere_r",
+        "Left hemisphere": "hemisphere_l",
+    }
+    return Enum("geometry_keys", geometry_dict)
+
+
 def brainreg_register():
     from napari._qt.qthreading import thread_worker
     from brainreg_napari.util import (
@@ -56,7 +65,7 @@ def brainreg_register():
         y_pixel_um=2,
         x_pixel_um=2,
         data_orientation="psl",
-        brain_geometry="full",
+        brain_geometry=get_brain_geometry_dropdown(),
         save_original_orientation=False,
         atlas_key=get_atlas_dropdown(),
         registration_output_folder=pathlib.Path.home(),
@@ -96,10 +105,7 @@ def brainreg_register():
             value=DEFAULT_PARAMETERS["data_orientation"],
             label="Data orientation",
         ),
-        brain_geometry =dict(
-            value=DEFAULT_PARAMETERS["brain_geometry"],
-            label="Brain geometry",
-        ),
+        brain_geometry=dict(label="Brain geometry",),
         registration_output_folder=dict(
             value=DEFAULT_PARAMETERS["registration_output_folder"],
             mode="d",
@@ -159,7 +165,7 @@ def brainreg_register():
         img_layer: napari.layers.Image,
         atlas_key: get_atlas_dropdown(),
         data_orientation: str,
-        brain_geometry: str,
+        brain_geometry: get_brain_geometry_dropdown(),
         z_pixel_um: float,
         x_pixel_um: float,
         y_pixel_um: float,
@@ -465,6 +471,7 @@ def brainreg_register():
 
         # Get viewer object
         viewer = getattr(widget, "viewer").value
+        brain_geometry = getattr(widget, "brain_geometry").value
 
         # Remove previous average projection layer if needed
         ind_pop = []
@@ -479,6 +486,10 @@ def brainreg_register():
 
         # Load atlas and gather data
         atlas = BrainGlobeAtlas('allen_mouse_25um')
+        if brain_geometry.value == "hemisphere_l":
+            atlas.reference[atlas.hemispheres == atlas.left_hemisphere_value] = 0
+        elif brain_geometry.value == "hemisphere_r":
+            atlas.reference[atlas.hemispheres == atlas.right_hemisphere_value] = 0
         input_orientation = getattr(widget, "data_orientation").value
         data = getattr(widget, "img_layer").value.data
         # Transform data to atlas orientation from user input
