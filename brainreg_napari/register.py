@@ -415,7 +415,7 @@ def brainreg_register():
                 sort_input_file,
                 n_free_cpus,
                 save_original_orientation=save_original_orientation,
-                brain_geometry=brain_geometry,
+                brain_geometry=brain_geometry.value,
             )
 
             logging.info("Calculating volumes of each brain area")
@@ -457,7 +457,7 @@ def brainreg_register():
     @widget.reset_button.changed.connect
     def restore_defaults(event=None):
         for name, value in DEFAULT_PARAMETERS.items():
-            if name != "atlas_key":
+            if name not in ["atlas_key", "brain_geometry"]:
                 getattr(widget, name).value = value
 
     @widget.check_orientation_button.changed.connect
