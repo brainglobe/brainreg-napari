@@ -4,6 +4,7 @@ import pathlib
 import logging
 
 import bg_space as bg
+import numpy as np
 
 from collections import namedtuple
 from enum import Enum
@@ -12,6 +13,7 @@ from magicgui import magicgui
 
 from brainglobe_napari_io.cellfinder.reader_dir import load_registration
 from brainreg_segment.atlas.utils import get_available_atlases
+from bg_atlasapi import BrainGlobeAtlas
 
 import brainreg as program_for_log
 from brainreg.utils.misc import log_metadata
@@ -454,11 +456,17 @@ def brainreg_register():
 
     @widget.check_orientation_button.changed.connect
     def check_orientation(event=None):
-        import numpy as np
-        from bg_atlasapi import BrainGlobeAtlas
+        """
+        Function used to check that the input orientation is correct. To do so it transforms the input data
+        into the requested atlas orientation, compute the average projection and displays it alongside the atlas. It
+        is then super easy for the super to identify which dimension should be swapped and avoid running the pipeline
+        on wrongly aligned data.
+        """
 
+        # Get viewer object
         viewer = getattr(widget, "viewer").value
 
+        # Remove previous average projection layer if needed
         ind_pop = []
         for i, layer in enumerate(viewer.layers):
             if layer.name in ['Ref. proj. 0', 'Ref. proj. 1', 'Ref. proj. 2',
@@ -466,17 +474,17 @@ def brainreg_register():
                 ind_pop.append(i)
             else:
                 layer.visible = False
-
         for index in ind_pop[::-1]:
             del viewer.layers[index]
 
+        # Load atlas and gather data
         atlas = BrainGlobeAtlas('allen_mouse_25um')
-
         input_orientation = getattr(widget, "data_orientation").value
         data = getattr(widget, "img_layer").value.data
-
+        # Transform data to atlas orientation from user input
         data_remapped = bg.map_stack_to(input_orientation, atlas.orientation, data)
 
+        # Compute average projection of atlas and remapped data
         u_proj = []
         u_proja = []
         s = []
@@ -486,6 +494,7 @@ def brainreg_register():
             s.append(u_proja[-1].shape[0])
         s = np.max(s)
 
+        # Display all projections with somewhat consistent scaling
         viewer.add_image(u_proja[0], name='Ref. proj. 0')
         viewer.add_image(u_proja[1], translate=[0, u_proja[0].shape[1]], name='Ref. proj. 1')
         viewer.add_image(u_proja[2], translate=[0, u_proja[0].shape[1] + u_proja[1].shape[1]], name='Ref. proj. 2')
