@@ -46,7 +46,7 @@ def get_atlas_dropdown():
 def get_brain_geometry_dropdown():
     geometry_dict = {
         "Full brain": "full",
-        "Right hemishpere": "hemisphere_r",
+        "Right hemisphere": "hemisphere_r",
         "Left hemisphere": "hemisphere_l",
     }
     return Enum("geometry_keys", geometry_dict)
@@ -465,7 +465,7 @@ def brainreg_register():
         """
         Function used to check that the input orientation is correct. To do so it transforms the input data
         into the requested atlas orientation, compute the average projection and displays it alongside the atlas. It
-        is then super easy for the super to identify which dimension should be swapped and avoid running the pipeline
+        is then super easy for the user to identify which dimension should be swapped and avoid running the pipeline
         on wrongly aligned data.
         """
 
