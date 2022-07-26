@@ -241,6 +241,9 @@ def brainreg_register():
         data_orientation: str
             Three characters describing the data orientation, e.g. "psl".
             See docs for more details.
+        brain_geometry: str
+            To allow brain sub-volumes to be processed. Choose whether your
+            data is a whole brain or a single hemisphere.
         z_pixel_um : float
             Size of your voxels in the axial dimension
         y_pixel_um : float
@@ -317,7 +320,11 @@ def brainreg_register():
             Activate debug mode (save intermediate steps).
         check_orientation_button:
             Interactively check the input orientation by comparing the average
-            projection along each axis.
+            projection along each axis.  The top row of displayed images are
+            the projections of the reference atlas. The bottom row are the
+            projections of the aligned input data. If the two rows are
+            similarly oriented, the orientation is correct. If not, change
+            the orientation and try again.
         reset_button:
             Reset parameters to default
         block : bool
