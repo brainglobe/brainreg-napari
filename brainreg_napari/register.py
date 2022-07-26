@@ -11,6 +11,7 @@ from fancylog import fancylog
 from magicgui import magicgui
 from napari._qt.qthreading import thread_worker
 from napari.types import LayerDataTuple
+from napari.utils.notifications import show_info
 
 import bg_space as bg
 import brainreg as program_for_log
@@ -486,8 +487,13 @@ def brainreg_register():
         data.
         """
 
+        if getattr(widget, "img_layer").value is None:
+            show_info("Raw data must be loaded before checking orientation.")
+            return widget
+
         # Get viewer object
         viewer = getattr(widget, "viewer").value
+
         brain_geometry = getattr(widget, "brain_geometry").value
 
         # Remove previous average projection layer if needed
