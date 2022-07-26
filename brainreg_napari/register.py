@@ -1,38 +1,81 @@
 import json
-import napari
-import pathlib
 import logging
-
-import bg_space as bg
-import numpy as np
-
+import pathlib
 from collections import namedtuple
 from enum import Enum
+from typing import Dict, List, Tuple
+
+import napari
+import numpy as np
 from fancylog import fancylog
 from magicgui import magicgui
+from napari._qt.qthreading import thread_worker
+from napari.types import LayerDataTuple
+from napari.utils.notifications import show_info
 
-from brainglobe_napari_io.cellfinder.reader_dir import load_registration
-from brainreg_segment.atlas.utils import get_available_atlases
-from bg_atlasapi import BrainGlobeAtlas
-
+import bg_space as bg
 import brainreg as program_for_log
-from brainreg.utils.misc import log_metadata
+from bg_atlasapi import BrainGlobeAtlas
+from brainglobe_napari_io.cellfinder.reader_dir import load_registration
+from brainreg.backend.niftyreg.run import run_niftyreg
 from brainreg.paths import Paths
 from brainreg.utils.boundaries import boundaries
+from brainreg.utils.misc import log_metadata
 from brainreg.utils.volume import calculate_volumes
-from brainreg.backend.niftyreg.run import run_niftyreg, crop_atlas
+from brainreg_segment.atlas.utils import get_available_atlases
+
+from brainreg_napari.util import (
+    NiftyregArgs,
+    downsample_and_save_brain,
+    initialise_brainreg,
+)
+
+
+def add_registered_image_layers(
+    viewer: napari.Viewer, *, registration_directory: pathlib.Path
+) -> Tuple[napari.layers.Image, napari.layers.Labels]:
+    """
+    Read in saved registration data and add as layers to the
+    napari viewer.
+
+    Returns
+    -------
+    boundaries :
+        Registered boundaries.
+    labels :
+        Registered brain regions.
+    """
+    layers: List[LayerDataTuple] = []
+
+    meta_file = (registration_directory / "brainreg.json").resolve()
+    if meta_file.exists():
+        with open(meta_file) as json_file:
+            metadata = json.load(json_file)
+        layers = load_registration(layers, registration_directory, metadata)
+    else:
+        raise FileNotFoundError(
+            f"'brainreg.json' file not found in {registration_directory}"
+        )
+
+    boundaries = viewer.add_layer(napari.layers.Layer.create(*layers[0]))
+    labels = viewer.add_layer(napari.layers.Layer.create(*layers[1]))
+    return boundaries, labels
 
 
 def get_layer_labels(widget):
     return [layer._name for layer in widget.viewer.value.layers]
 
 
-def get_additional_images_downsample(widget):
-    names = [layer._name for layer in widget.viewer.value.layers.selection]
-    filenames = [
-        layer._source for layer in widget.viewer.value.layers.selection
-    ]
-    return {str(k): str(v.path) for k, v in zip(names, filenames)}
+def get_additional_images_downsample(widget) -> Dict[str, str]:
+    """
+    For any selected layers loaded from a file, get a mapping from
+    layer name -> layer file path.
+    """
+    images = {}
+    for layer in widget.viewer.value.layers.selection:
+        if layer._source.path is not None:
+            images[layer._name] = str(layer._source.path)
+    return images
 
 
 def get_atlas_dropdown():
@@ -53,12 +96,6 @@ def get_brain_geometry_dropdown():
 
 
 def brainreg_register():
-    from napari._qt.qthreading import thread_worker
-    from brainreg_napari.util import (
-        initialise_brainreg,
-        downsample_and_save_brain,
-        NiftyregArgs,
-    )
 
     DEFAULT_PARAMETERS = dict(
         z_pixel_um=5,
@@ -84,8 +121,12 @@ def brainreg_register():
 
     @magicgui(
         call_button=True,
-        img_layer=dict(label="Image layer",),
-        atlas_key=dict(label="Atlas",),
+        img_layer=dict(
+            label="Image layer",
+        ),
+        atlas_key=dict(
+            label="Atlas",
+        ),
         z_pixel_um=dict(
             value=DEFAULT_PARAMETERS["z_pixel_um"],
             label="Voxel size (z)",
@@ -105,7 +146,9 @@ def brainreg_register():
             value=DEFAULT_PARAMETERS["data_orientation"],
             label="Data orientation",
         ),
-        brain_geometry=dict(label="Brain geometry",),
+        brain_geometry=dict(
+            label="Brain geometry",
+        ),
         registration_output_folder=dict(
             value=DEFAULT_PARAMETERS["registration_output_folder"],
             mode="d",
@@ -158,7 +201,9 @@ def brainreg_register():
             label="Debug mode",
         ),
         reset_button=dict(widget_type="PushButton", text="Reset defaults"),
-        check_orientation_button=dict(widget_type="PushButton", text="Check orientation"),
+        check_orientation_button=dict(
+            widget_type="PushButton", text="Check orientation"
+        ),
     )
     def widget(
         viewer: napari.Viewer,
@@ -184,6 +229,7 @@ def brainreg_register():
         debug: bool,
         reset_button,
         check_orientation_button,
+        block: bool = False,
     ):
         """
         Parameters
@@ -195,6 +241,9 @@ def brainreg_register():
         data_orientation: str
             Three characters describing the data orientation, e.g. "psl".
             See docs for more details.
+        brain_geometry: str
+            To allow brain sub-volumes to be processed. Choose whether your
+            data is a whole brain or a single hemisphere.
         z_pixel_um : float
             Size of your voxels in the axial dimension
         y_pixel_um : float
@@ -205,7 +254,8 @@ def brainreg_register():
             Where to save the registration output
                 affine_n_steps: int,
         save_original_orientation: bool
-            Option to save annotations with the same orientation as the input data. Use this if you plan to map
+            Option to save annotations with the same orientation as the input
+             data. Use this if you plan to map
             segmented objects outside brainglobe/tools.
         affine_n_steps: int
              Registration starts with further downsampled versions of the
@@ -228,7 +278,8 @@ def brainreg_register():
             original data to optimize the global fit of the result and prevent
             "getting stuck" in local minima of the similarity function. This
              parameter determines how many downsampling steps are being
-             performed, with each step halving the data size along each dimension.
+             performed, with each step halving the data size along each
+             dimension.
         freeform_use_n_steps: int
             Determines how many of the downsampling steps defined by
             freeform_n_steps will have their registration computed. The
@@ -268,38 +319,31 @@ def brainreg_register():
         debug: bool
             Activate debug mode (save intermediate steps).
         check_orientation_button:
-            Interactively check the input orientation by comparing the average projection along each axis.
+            Interactively check the input orientation by comparing the average
+            projection along each axis.  The top row of displayed images are
+            the projections of the reference atlas. The bottom row are the
+            projections of the aligned input data. If the two rows are
+            similarly oriented, the orientation is correct. If not, change
+            the orientation and try again.
         reset_button:
             Reset parameters to default
+        block : bool
+            If `True`, registration will block execution when called. By
+            default this is `False` to avoid blocking the napari GUI, but
+            is set to `True` in the tests.
         """
 
-        def add_image_layers():
+        def load_registration_as_layers() -> None:
+            """
+            Load the saved registration data into napari layers.
+            """
+            viewer = getattr(widget, "viewer").value
             registration_directory = pathlib.Path(
                 getattr(widget, "registration_output_folder").value
             )
-            layers = []
-
-            if registration_directory.exists():
-                with open(
-                    registration_directory / "brainreg.json"
-                ) as json_file:
-                    metadata = json.load(json_file)
-                layers = load_registration(
-                    layers, registration_directory, metadata
-                )
-            viewer = getattr(widget, "viewer").value
-            atlas_layer = napari.layers.Labels(
-                layers[0][0],
-                scale=layers[0][1]["scale"],
-                name=layers[0][1]["name"],
+            add_registered_image_layers(
+                viewer, registration_directory=registration_directory
             )
-            boundaries_layer = napari.layers.Image(
-                layers[1][0],
-                scale=layers[1][1]["scale"],
-                name=layers[1][1]["name"],
-            )
-            viewer.add_layer(atlas_layer)
-            viewer.add_layer(boundaries_layer)
 
         def get_gui_logging_args():
             args_dict = {}
@@ -335,21 +379,7 @@ def brainreg_register():
             )
 
         @thread_worker
-        def run(
-            affine_n_steps,
-            affine_use_n_steps,
-            freeform_n_steps,
-            freeform_use_n_steps,
-            bending_energy_weight,
-            grid_spacing,
-            smoothing_sigma_reference,
-            smoothing_sigma_floating,
-            histogram_n_bins_floating,
-            histogram_n_bins_reference,
-            save_original_orientation,
-            brain_geometry,
-        ):
-
+        def run():
             paths = Paths(pathlib.Path(registration_output_folder))
 
             niftyreg_args = NiftyregArgs(
@@ -437,22 +467,15 @@ def brainreg_register():
                 f"{paths.registration_output_folder}"
             )
 
-        worker = run(
-            affine_n_steps,
-            affine_use_n_steps,
-            freeform_n_steps,
-            freeform_use_n_steps,
-            bending_energy_weight,
-            grid_spacing,
-            smoothing_sigma_reference,
-            smoothing_sigma_floating,
-            histogram_n_bins_floating,
-            histogram_n_bins_reference,
-            save_original_orientation,
-            brain_geometry,
-        )
-        worker.returned.connect(add_image_layers)
+        worker = run()
+        if not block:
+            worker.returned.connect(load_registration_as_layers)
+
         worker.start()
+
+        if block:
+            worker.await_workers()
+            load_registration_as_layers()
 
     @widget.reset_button.changed.connect
     def restore_defaults(event=None):
@@ -463,21 +486,34 @@ def brainreg_register():
     @widget.check_orientation_button.changed.connect
     def check_orientation(event=None):
         """
-        Function used to check that the input orientation is correct. To do so it transforms the input data
-        into the requested atlas orientation, compute the average projection and displays it alongside the atlas. It
-        is then super easy for the user to identify which dimension should be swapped and avoid running the pipeline
-        on wrongly aligned data.
+        Function used to check that the input orientation is correct.
+        To do so it transforms the input data into the requested atlas
+        orientation, compute the average projection and displays it alongside
+        the atlas. It is then easier for the user to identify which dimension
+        should be swapped and avoid running the pipeline on wrongly aligned
+        data.
         """
+
+        if getattr(widget, "img_layer").value is None:
+            show_info("Raw data must be loaded before checking orientation.")
+            return widget
 
         # Get viewer object
         viewer = getattr(widget, "viewer").value
+
         brain_geometry = getattr(widget, "brain_geometry").value
 
         # Remove previous average projection layer if needed
         ind_pop = []
         for i, layer in enumerate(viewer.layers):
-            if layer.name in ['Ref. proj. 0', 'Ref. proj. 1', 'Ref. proj. 2',
-                              'Input proj. 0', 'Input proj. 1', 'Input proj. 2']:
+            if layer.name in [
+                "Ref. proj. 0",
+                "Ref. proj. 1",
+                "Ref. proj. 2",
+                "Input proj. 0",
+                "Input proj. 1",
+                "Input proj. 2",
+            ]:
                 ind_pop.append(i)
             else:
                 layer.visible = False
@@ -485,15 +521,21 @@ def brainreg_register():
             del viewer.layers[index]
 
         # Load atlas and gather data
-        atlas = BrainGlobeAtlas('allen_mouse_25um')
+        atlas = BrainGlobeAtlas("allen_mouse_25um")
         if brain_geometry.value == "hemisphere_l":
-            atlas.reference[atlas.hemispheres == atlas.left_hemisphere_value] = 0
+            atlas.reference[
+                atlas.hemispheres == atlas.left_hemisphere_value
+            ] = 0
         elif brain_geometry.value == "hemisphere_r":
-            atlas.reference[atlas.hemispheres == atlas.right_hemisphere_value] = 0
+            atlas.reference[
+                atlas.hemispheres == atlas.right_hemisphere_value
+            ] = 0
         input_orientation = getattr(widget, "data_orientation").value
         data = getattr(widget, "img_layer").value.data
         # Transform data to atlas orientation from user input
-        data_remapped = bg.map_stack_to(input_orientation, atlas.orientation, data)
+        data_remapped = bg.map_stack_to(
+            input_orientation, atlas.orientation, data
+        )
 
         # Compute average projection of atlas and remapped data
         u_proj = []
@@ -506,19 +548,36 @@ def brainreg_register():
         s = np.max(s)
 
         # Display all projections with somewhat consistent scaling
-        viewer.add_image(u_proja[0], name='Ref. proj. 0')
-        viewer.add_image(u_proja[1], translate=[0, u_proja[0].shape[1]], name='Ref. proj. 1')
-        viewer.add_image(u_proja[2], translate=[0, u_proja[0].shape[1] + u_proja[1].shape[1]], name='Ref. proj. 2')
+        viewer.add_image(u_proja[0], name="Ref. proj. 0")
+        viewer.add_image(
+            u_proja[1], translate=[0, u_proja[0].shape[1]], name="Ref. proj. 1"
+        )
+        viewer.add_image(
+            u_proja[2],
+            translate=[0, u_proja[0].shape[1] + u_proja[1].shape[1]],
+            name="Ref. proj. 2",
+        )
 
         s1 = u_proja[0].shape[0] / u_proj[0].shape[0]
         s2 = u_proja[0].shape[1] / u_proj[0].shape[1]
-        viewer.add_image(u_proj[0], translate=[s, 0], name='Input proj. 0', scale=[s1, s2])
+        viewer.add_image(
+            u_proj[0], translate=[s, 0], name="Input proj. 0", scale=[s1, s2]
+        )
         s1 = u_proja[1].shape[0] / u_proj[1].shape[0]
         s2 = u_proja[1].shape[1] / u_proj[1].shape[1]
-        viewer.add_image(u_proj[1], translate=[s, u_proja[0].shape[1]], name='Input proj. 1', scale=[s1, s2])
+        viewer.add_image(
+            u_proj[1],
+            translate=[s, u_proja[0].shape[1]],
+            name="Input proj. 1",
+            scale=[s1, s2],
+        )
         s1 = u_proja[2].shape[0] / u_proj[2].shape[0]
         s2 = u_proja[2].shape[1] / u_proj[2].shape[1]
-        viewer.add_image(u_proj[2], translate=[s, u_proja[0].shape[1] + u_proja[1].shape[1]], name='Input proj. 2',
-                         scale=[s1, s2])
+        viewer.add_image(
+            u_proj[2],
+            translate=[s, u_proja[0].shape[1] + u_proja[1].shape[1]],
+            name="Input proj. 2",
+            scale=[s1, s2],
+        )
 
     return widget
