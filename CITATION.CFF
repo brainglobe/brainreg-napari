@@ -1,7 +1,7 @@
 
 cff-version: 1.2.0
 message: If you use this software, please cite it using these metadata.
-title: Accurate determination of marker location within whole-brain microscopy images
+title: brainreg-napari
 authors:
 - family-names: "Tyson"
   given-names: "A."
@@ -24,8 +24,8 @@ authors:
 - family-names: "Margrie"  
   given-names: "T."
 url: https://github.com/brainglobe/brainreg-napari
-references:
-  - type: article
+preferred-citation:
+    type: article
     title: Accurate determination of marker location within whole-brain microscopy images
     journal: Scientific Reports
     volume: 12
