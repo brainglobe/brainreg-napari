@@ -12,13 +12,13 @@ jobs:
   linting:
     runs-on: ubuntu-latest
     steps:
-      - uses: neuroinformatics-unit/actions/lint@v1
+      - uses: neuroinformatics-unit/actions/lint@v1.2.0
 
   manifest:
     name: Check Manifest
     runs-on: ubuntu-latest
     steps:
-      - uses: neuroinformatics-unit/actions/check_manifest@v1
+      - uses: neuroinformatics-unit/actions/check_manifest@v1.2.0
 
   test:
     needs: [ linting, manifest ]
