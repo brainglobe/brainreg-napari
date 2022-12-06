@@ -31,24 +31,6 @@ dependencies = [
     "pooch>1",  # For sample data
 ]
 
-[project.urls]
-homepage = "https://brainglobe.info"
-bug_tracker = "https://github.com/brainglobe/brainreg-napari/issues"
-documentation = "https://docs.brainglobe.info/brainreg-napari"
-source_code = "https://github.com/brainglobe/brainreg-napari"
-user_support = "https://forum.image.sc/tag/brainglobe"
-twitter = "https://twitter.com/brain_globe"
-
-[build-system]
-requires = [
-    "setuptools>=45",
-    "wheel",
-    "setuptools_scm[toml]>=6.2",
-]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools_scm]
-
 [project.optional-dependencies]
 dev = [
         "black",
@@ -65,6 +47,27 @@ dev = [
         "flake8",
         "check-manifest",
 ]
+
+[project.urls]
+homepage = "https://brainglobe.info"
+bug_tracker = "https://github.com/brainglobe/brainreg-napari/issues"
+documentation = "https://docs.brainglobe.info/brainreg-napari"
+source_code = "https://github.com/brainglobe/brainreg-napari"
+user_support = "https://forum.image.sc/tag/brainglobe"
+twitter = "https://twitter.com/brain_globe"
+
+[project.entry-points."napari.manifest"]
+brainreg-napari = "brainreg_napari:napari.yaml"
+
+[build-system]
+requires = [
+    "setuptools>=45",
+    "wheel",
+    "setuptools_scm[toml]>=6.2",
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
 
 [tool.black]
 target-version = ['py38', 'py39', 'py310']
