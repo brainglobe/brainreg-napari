@@ -10,4 +10,5 @@ recursive-exclude * *.py[co]
 
 recursive-exclude .napari *
 exclude .pre-commit-config.yaml
+exclude .flake8
 recursive-exclude examples *
