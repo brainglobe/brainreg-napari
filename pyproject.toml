@@ -46,6 +46,7 @@ dev = [
         "pre-commit",
         "flake8",
         "check-manifest",
+        "setuptools_scm",
 ]
 
 [project.urls]
