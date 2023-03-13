@@ -38,16 +38,7 @@ jobs:
           python-version: "3.10"
 
     steps:
-      # these libraries enable testing on Qt on linux
       - uses: tlambert03/setup-qt-libs@v1
-
-      # strategy borrowed from vispy for installing opengl libs on windows
-      - name: Install Windows OpenGL
-        if: runner.os == 'Windows'
-        run: |
-          git clone --depth 1 https://github.com/pyvista/gl-ci-helpers.git
-          powershell gl-ci-helpers/appveyor/install_opengl.ps1
-
       - uses: neuroinformatics-unit/actions/test@v1
         with:
           python-version: ${{ matrix.python-version }}
