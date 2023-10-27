@@ -1,3 +1,18 @@
+# THIS PACKAGE HAS MOVED
+
+As of the release of `brainreg` version `1.0.0`, `brainreg-napari` is now a part of [`brainreg`](https://github.com/brainglobe/brainreg).
+If you are looking to install the `brainglobe-napari` plugin, please install `brainreg` with it's optional `napari` dependency as detailed in the installation instructions on the [website](https://brainglobe.info/documentation/brainreg/index.html) or [repository](https://github.com/brainglobe/brainreg).
+Before you update, you should also remove the old `brianreg-napari` package from your environment using either
+
+```bash
+python -m pip uninstall brainreg-napari # If you installed via pip
+conda remove brainreg-napari # If you installed via conda
+```
+
+You can find the old documentation and installation instructions below, but please note this version of the package should be considered unmaintained.
+
+---
+
 [![Python Version](https://img.shields.io/pypi/pyversions/brainreg-napari.svg)](https://pypi.org/project/brainreg-napari)
 [![PyPI](https://img.shields.io/pypi/v/brainreg-napari.svg)](https://pypi.org/project/brainreg-napari)
 [![Wheel](https://img.shields.io/pypi/wheel/brainreg-napari.svg)](https://pypi.org/project/brainreg-napari)
