@@ -9,7 +9,6 @@ requires-python = ">=3.9.0"
 dynamic = ["version"]
 classifiers = [
     "Development Status :: 4 - Beta",
-    "Framework :: napari",
     "Topic :: Scientific/Engineering :: Image Recognition",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
