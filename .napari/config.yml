@@ -1,3 +1,4 @@
+visibility: hidden
 labels:
   ontology: EDAM-BIOIMAGING:alpha06
   terms:
